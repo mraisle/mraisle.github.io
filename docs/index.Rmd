@@ -1,0 +1,97 @@
+---
+title: "Docket Board Charts"
+author: "Meg"
+date: "2023-03-24"
+output: html_document
+---
+
+Hello! Still some formatting kinks to work out, but wanted to show you how it looks so far and get your initial feedback. Currently the script is set up so each of these plots saves as a separate .png file, named based on the initiative name. Happy to show you how this works, what type of data file I would need to replicate this, etc. whenever is convenient for you :) 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(ggrepel)
+
+
+
+#Make donut plot for board docket
+
+#load data
+data2 <- read.csv("docketbudget_data.csv")
+data2 = subset(data2, select = -c(total) )
+colnames(data2) <- c("Initiative","Granted","In-Progress","Remaining")
+
+```
+
+```{r pressure, echo=FALSE}
+# Increase the value to make the hole bigger
+# Decrease the value to make the hole smaller
+hsize <- 2
+
+
+#make a separate dataframe for every initiative
+new_dfs <- list()
+# Loop through each row of the dataframe
+for (i in 1:nrow(data2)) {
+  # Extract the name for the new dataframe
+  df_name <- as.character(data2[i, 1])
+  
+  # Create a new dataframe from the row
+  new_df <- data.frame(t(data2[i, -1]))
+  
+  # Set the names of the columns in the new dataframe
+  names(new_df) <- "Value"
+  
+  #change column name
+  new_df <- rownames_to_column(new_df, var = "group")
+  colnames(new_df) <- c("group", "value")
+  
+  #make another column to make the values numeric
+  new_df$numbers <- gsub("[^0-9.]", "", new_df$value)
+  new_df$numbers <- as.numeric(new_df$numbers)
+  
+  #remove rows where the value is $0
+  new_df <- subset(new_df, numbers != 0)
+  
+  
+  #make labels
+  new_df <- new_df %>% 
+    mutate(x = hsize)
+  
+  new_df$label <- paste0(new_df$group, ": \n", new_df$value)
+  
+  # Store the new dataframe in the list
+  new_dfs[[df_name]] <- new_df
+}
+
+#Set up the color scheme for the plots
+my_colors <- c("#48A158","#4C83D0","#EB5834")
+names(my_colors) <- c("Granted", "In-Progress", "Remaining")
+
+#make the plots
+# Loop through each dataframe in the list
+for (df_name in names(new_dfs)) {
+  # Get the dataframe
+  df <- new_dfs[[df_name]]
+  
+  # Create a ggplot for the dataframe
+  plot <- ggplot(df, aes(x = hsize, y = numbers, fill = group)) +
+    geom_col() +
+    coord_polar(theta = "y") +
+    xlim(c(0.2, hsize + 0.5))+
+    theme_void()+
+    theme(legend.position = "none",)+
+    ggtitle(df_name)+
+    scale_fill_manual(values = my_colors)+
+    geom_text_repel(aes(label = label),fontface="bold", nudge_x = .5)
+
+  
+  # Print the plot
+  print(plot)
+}
+
+
+```
+
